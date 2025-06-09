@@ -1,11 +1,9 @@
 import os
 import sys
-import time
 from dotenv import load_dotenv
 import requests
-from typing import Any, Dict, List, Optional
+from typing import Dict, Optional
 from datetime import datetime, timedelta, timezone
-from mcp.server.fastmcp import FastMCP
 import json
 from coralogix_mcp.common.logger import setup_logger
 from litellm import acompletion
