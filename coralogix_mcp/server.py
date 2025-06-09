@@ -13,17 +13,33 @@ logger = logging.getLogger('rds_mcp')
 
 
 class CoralogixMCPServer:
-    def __init__(self, model: str, openai_api_key: str):
+    def __init__(self, model: str, openai_api_key: str, coralogix_api_key: str, application_name: str):
         self.mcp = FastMCP("coralogix")
-        self.client = CoralogixClient(model=model, openai_api_key=openai_api_key)
+        self.client = CoralogixClient(model=model, openai_api_key=openai_api_key, coralogix_api_key=coralogix_api_key, application_name=application_name)
         self._register_tools()
-
+        self.openai_api_key = openai_api_key
+        self.coralogix_api_key = coralogix_api_key
+        self.application_name = application_name
+        self.model = model
+        
     def _register_tools(self):
         self.mcp.tool()(self.get_2xx_logs)
         self.mcp.tool()(self.get_4xx_logs)
         self.mcp.tool()(self.get_5xx_logs)
         self.mcp.tool()(self.get_coralogix_logs_by_string)
-
+    
+    def run_mcp_blocking(self):
+        """
+        Runs the FastMCP server. This method is blocking and should be called
+        after any necessary asynchronous initialization (like self.client.initialize_coralogix_client)
+        has been completed in a separate AnyIO event loop.
+        """
+        # self.client.initialize_coralogix_client() is assumed to have been awaited
+        # before this synchronous method is called.
+        
+        # The FastMCP server's run method will internally call anyio.run()
+        # and manage its own event loop for stdio transport.
+        self.mcp.run(transport='stdio')
 
     async def get_2xx_logs(self, service_name = None) -> str:
         """Analyze 2XX error logs from Coralogix with both API endpoint statistics and detailed error messages"""

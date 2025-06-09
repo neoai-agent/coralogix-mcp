@@ -48,12 +48,19 @@ def main():
         logger.error("Coralogix API key not provided. Set CORALOGIX_API_KEY environment variable or use --coralogix-api-key")
         return 1
 
+    # Get application name from args or environment
+    application_name = args.application_name or os.getenv("APPLICATION_NAME")
+    if not application_name:
+        logger.error("Application name not provided. Set APPLICATION_NAME environment variable or use --application-name")
+        return 1
+
     try:
         # Create server instance
         server = CoralogixMCPServer(
             model=model,
             openai_api_key=openai_api_key,
-            coralogix_api_key=coralogix_api_key
+            coralogix_api_key=coralogix_api_key,
+            application_name=application_name
         )
 
         anyio.run(perform_async_initialization, server)

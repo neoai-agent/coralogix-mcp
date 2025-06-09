@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from mcp.server.fastmcp import FastMCP
 import json
 from coralogix_mcp.common.logger import setup_logger
+from litellm import acompletion
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 CORALOGIX_API_URL = "https://ng-api-http.coralogixsg.com/api/v1/dataprime/query"
@@ -40,11 +41,25 @@ class CoralogixClient:
             "Content-Type": "application/json",
             "Authorization": f"Bearer {coralogix_api_key}"
         }
+        self.metadata = {
+            "syntax": "QUERY_SYNTAX_DATAPRIME",
+            "tier": "TIER_ARCHIVE",
+            "startTime": self.start_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "endTime": self.end_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "defaultSource": "logs"
+        }
+
         self.service_names_available = []
 
-    def fetch_service_names(self):
+    async def initialize_coralogix_client(self):
+        """Initialize Coralogix client Data"""
+        self.service_names_available =  await self.fetch_service_names()
+        logger.info(f"Initialized Coralogix client with {len(self.service_names_available)} service names")
+
+    async def fetch_service_names(self):
         """Fetch service names from Coralogix"""
         current_time = datetime.now(timezone.utc)
+        query = f"source logs | filter $l.applicationname == '{self.application_name}' | filter $l.subsystemname != null | groupby $l.subsystemname"
 
         # Check if we have valid cache data
         if (self._service_name_cache["data"] is not None and 
@@ -53,20 +68,14 @@ class CoralogixClient:
             logger.info("Returning cached service names")
             return self._service_name_cache["data"]
 
-        logger.info("Fetching new service names")
         try:
-            response = requests.get(
-                "https://ng-api-http.coralogixsg.com/api/v1/dataprime/query",
-                params={
-                    "query": f"source logs | filter $l.applicationname == '{self.application_name}' | filter $l.subsystemname != null | groupby $l.subsystemname",
-                    "metadata": {
-                        "syntax": "QUERY_SYNTAX_DATAPRIME",
-                        "tier": "TIER_ARCHIVE",
-                        "startTime": self.start_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-                        "endTime": self.end_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-                        "defaultSource": "logs"
-                    }
-                },
+            payload = {
+                "query": query,
+                "metadata": self.metadata
+            }
+            response = requests.post(
+                f"{CORALOGIX_API_URL}",
+                json=payload,
                 headers=self.headers
             )
 
@@ -115,11 +124,6 @@ class CoralogixClient:
             logger.error(f"Error fetching service names: {str(e)}")
             return []
 
-    async def initialize_coralogix_client(self):
-        """Initialize Coralogix client Data"""
-        self.service_names_available =  self.fetch_service_names()
-        logger.info(f"Initialized Coralogix client with {len(self.service_names_available)} service names")
-
     async def find_matching_coralogix_service_name(self, service_name: str) -> str:
         """Find Coralogix service name"""
         if not service_name:
@@ -132,7 +136,7 @@ class CoralogixClient:
             return self._service_name_matching_cache[service_name]
         
         # Get all available service names
-        service_names_available = self.fetch_service_names()
+        service_names_available = await self.fetch_service_names()
         if not service_names_available:
             logger.error("No service names available")
             return None
@@ -288,13 +292,7 @@ class CoralogixClient:
             
             payload = {
                 "query": query,
-                "metadata": {
-                    "syntax": "QUERY_SYNTAX_DATAPRIME",
-                    "tier": "TIER_ARCHIVE",
-                    "startTime": start_time_str,
-                    "endTime": end_time_str,
-                    "defaultSource": "logs"
-                }
+                "metadata": self.metadata
             }
             
             # Enhanced logging
@@ -466,16 +464,14 @@ class CoralogixClient:
 
         return analysis
 
-    async def search_recent_error_logs(self, service_name: str = None, environment: str = "prod") -> Optional[Dict]:
+    async def search_recent_error_logs(self, service_name: str = None) -> Optional[Dict]:
         """Search error logs within a 2-minute time window from the current time and return detailed error messages"""
+        service_name = await self.find_matching_coralogix_service_name(service_name)
+        if not service_name:
+            raise ValueError(f"No matching service name found for {service_name}")
         try:
-            # Set default environment to prod if None or not specified
-            if environment is None:
-                environment = "prod"
-            
             # Generate query for both 4xx and 5xx errors
-            application_name = "ECS-HealthifyMe-Prod" if environment == "prod" else "ECS-HealthifyMe-Staging"
-            query = f"source logs | filter $l.applicationname == '{application_name}'"
+            query = f"source logs | filter $l.applicationname == '{self.application_name}'"
             if service_name:
                 query += f" | filter $l.subsystemname == '{service_name}'"
             # Add severity filter for both CRITICAL and ERROR
@@ -556,7 +552,7 @@ class CoralogixClient:
             str: JSON string containing the LLM's response with coralogix service_name
         """
         try:
-            response = self.llm.completion(
+            response = await acompletion(
                 model=self.model,
                 api_key=self.openai_api_key,
                 messages=[

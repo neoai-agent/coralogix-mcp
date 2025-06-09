@@ -1,6 +1,6 @@
 import json
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timezone, timedelta
 
 @pytest.mark.asyncio
@@ -221,4 +221,26 @@ def test_find_best_match_basic(mock_coralogix_client):
     
     # Test empty input
     assert mock_coralogix_client.find_best_match_basic("", candidates) is None
-    assert mock_coralogix_client.find_best_match_basic("test", []) is None 
+    assert mock_coralogix_client.find_best_match_basic("test", []) is None
+
+@pytest.mark.asyncio
+async def test_fetch_service_names_404(mock_coralogix_client):
+    """Test fetch_service_names when the API returns a 404 error."""
+    mock_response = Mock()
+    mock_response.ok = False
+    mock_response.status_code = 404
+    mock_response.text = "Not found"
+    mock_coralogix_client._requests.get.return_value = mock_response
+    service_names = mock_coralogix_client.fetch_service_names()
+    assert service_names == []
+
+@pytest.mark.asyncio
+async def test_call_llm(mock_coralogix_client):
+    """Test call_llm (mocked) returns the expected JSON response."""
+    # Mock the llm.completion call so that it returns a response with a valid JSON string.
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock(message=MagicMock(content='{"service_name":"test-service-1"}'))]
+    mock_coralogix_client.llm.completion.return_value = mock_response
+    prompt = "Find the best matching service name for 'test' from [test-service-1, test-service-2]"
+    result = await mock_coralogix_client.call_llm(prompt)
+    assert result == '{"service_name":"test-service-1"}' 
