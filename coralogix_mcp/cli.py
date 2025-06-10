@@ -16,7 +16,7 @@ async def perform_async_initialization(server_obj: CoralogixMCPServer) -> None:
     try:
         # AWS clients are now initialized by AWSClientManager in the constructor
         # No need for explicit initialization
-        await server_obj.client.initialize_coralogix_client()
+        pass
     except Exception as e:
         logger.error(f"Failed to initialize AWS clients: {e}")
         return 1
@@ -27,40 +27,23 @@ def main():
     parser.add_argument("--host", default="localhost", type=str, help="Custom host for the server")
     parser.add_argument("--port", default=8000, type=int, help="Custom port for the server")
     parser.add_argument("--model", default="openai/gpt-4o-mini", type=str, help="OpenAI model to use")
-    parser.add_argument("--openai-api-key", type=str, help="OpenAI API key")
-    parser.add_argument("--coralogix-api-key", type=str, help="Coralogix API key")
-    parser.add_argument("--application-name", type=str, help="Application name")
+    parser.add_argument("--openai-api-key", type=str, required=True, help="OpenAI API key")
+    parser.add_argument("--coralogix-api-key", type=str, required=True, help="Coralogix API key")
+    parser.add_argument("--application-name", type=str, required=True, help="Application name")
 
     args = parser.parse_args()
 
-    # Get OpenAI API key from args or environment
-    openai_api_key = args.openai_api_key or os.getenv("OPENAI_API_KEY")
-    if not openai_api_key:
-        logger.error("OpenAI API key not provided. Set OPENAI_API_KEY environment variable or use --openai-api-key")
-        return 1
-
-    # Get model from args or environment
-    model = args.model or os.getenv("OPENAI_MODEL", "openai/gpt-4o-mini")
-
-    # Get Coralogix API key from args or environment
-    coralogix_api_key = args.coralogix_api_key or os.getenv("CORALOGIX_API_KEY")
-    if not coralogix_api_key:
-        logger.error("Coralogix API key not provided. Set CORALOGIX_API_KEY environment variable or use --coralogix-api-key")
-        return 1
-
-    # Get application name from args or environment
-    application_name = args.application_name or os.getenv("APPLICATION_NAME")
-    if not application_name:
-        logger.error("Application name not provided. Set APPLICATION_NAME environment variable or use --application-name")
+    if not args.openai_api_key or not args.coralogix_api_key or not args.application_name:
+        logger.error("OpenAI API key, Coralogix API key, and application name are required")
         return 1
 
     try:
         # Create server instance
         server = CoralogixMCPServer(
-            model=model,
-            openai_api_key=openai_api_key,
-            coralogix_api_key=coralogix_api_key,
-            application_name=application_name
+            model=args.model,
+            openai_api_key=args.openai_api_key,
+            coralogix_api_key=args.coralogix_api_key,
+            application_name=args.application_name
         )
 
         anyio.run(perform_async_initialization, server)

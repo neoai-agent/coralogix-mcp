@@ -15,10 +15,11 @@ A Monitoring and Control Panel (MCP) for Coralogix log analysis and service moni
 
 ```bash
 # Install using pipx (recommended)
-pipx install coralogix-mcp
+# Install
+pipx install git+https://github.com/yourusername/coralogix-mcp.git
 
-# Or install using pip
-pip install coralogix-mcp
+# Or run without installation
+pipx run git+https://github.com/yourusername/coralogix-mcp.git
 ```
 
 ## Configuration
@@ -30,43 +31,6 @@ CORALOGIX_API_KEY=your_api_key_here
 OPENAI_API_KEY=your_openai_api_key_here
 MODEL=gpt-3.5-turbo  # or your preferred model
 APPLICATION_NAME=your_application_name
-```
-
-## Usage
-
-### Basic Usage
-
-```bash
-# Search for recent errors in a service
-coralogix-mcp search-errors --service my-service
-
-# Get HTTP request analysis
-coralogix-mcp analyze-http --service my-service --type 4xx
-
-# Search logs with custom query
-coralogix-mcp search --query "error in payment service"
-
-# Get log context around a specific string
-coralogix-mcp context --service my-service --search "payment failed"
-```
-
-### Command Reference
-
-```bash
-# Search for recent errors
-coralogix-mcp search-errors [--service SERVICE] [--environment {prod,staging}]
-
-# Analyze HTTP requests
-coralogix-mcp analyze-http --service SERVICE --type {2xx,4xx,5xx,critical}
-
-# Search logs
-coralogix-mcp search --query QUERY [--service SERVICE]
-
-# Get log context
-coralogix-mcp context --service SERVICE --search SEARCH_STRING [--lines LINES]
-
-# List available services
-coralogix-mcp list-services
 ```
 
 ## Development
@@ -93,6 +57,27 @@ pip install -e ".[dev]"
 pytest
 ```
 
+## Tools
+
+The coralogix-mcp package provides a command-line interface (CLI) for interacting with Coralogix logs. You can use the following commands (for example, via pipx):
+
+- **analyze-logs** – Analyze (and summarize) log data (for example, show top 10 API endpoints with counts).  
+- **search-logs** – Search (and filter) logs (for example, by a search string or service name).  
+- **search-recent-error-logs** – Search (and filter) recent error logs (for example, within a 2‑minute window) and return detailed error messages.  
+- **get-log-context** – Extract (and display) log entries with context (for example, around a given search string).
+
+For more details, run (for example)  
+  coralogix-mcp --help  
+or  
+  coralogix-mcp analyze-logs --help  
+(etc.). 
+
+The server provides the following tools for coralogix log analysis:
+get_2xx_logs
+get_4xx_logs
+get_5xx_logs
+get_coralogix_logs_by_string
+
 ## Contributing
 
 1. Fork the repository
@@ -107,4 +92,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-For support, please open an issue in the GitHub repository or contact the development team at dev@healthifyme.com. 
+For support, please open an issue in the GitHub repository or contact the development team at dev@healthifyme.com.
