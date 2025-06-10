@@ -1,20 +1,12 @@
-# Coralogix MCP
+# Coralogix MCP Server
 
-A Monitoring and Control Panel (MCP) for Coralogix log analysis and service monitoring. This tool provides a command-line interface for querying and analyzing logs from Coralogix, with features for service name matching, error analysis, and log context extraction.
-
-## Features
-
-- Service name matching with LLM-powered fuzzy matching
-- HTTP request analysis (2xx, 4xx, 5xx status codes)
-- Critical error log analysis
-- Log context extraction with customizable context lines
-- Caching for improved performance
-- Environment-aware logging (prod/staging)
+A command-line tool for monitoring and analyzing Coralogix logs using MCP (Model Control Protocol).
 
 ## Installation
 
+Install directly from GitHub using pipx:
+
 ```bash
-# Install using pipx (recommended)
 # Install
 pipx install git+https://github.com/yourusername/coralogix-mcp.git
 
@@ -22,74 +14,90 @@ pipx install git+https://github.com/yourusername/coralogix-mcp.git
 pipx run git+https://github.com/yourusername/coralogix-mcp.git
 ```
 
-## Configuration
+## Quick Start
 
-Create a `.env` file in your working directory with the following variables:
+1. Set up your environment variables (using a .env file):
 
-```env
-CORALOGIX_API_KEY=your_api_key_here
-OPENAI_API_KEY=your_openai_api_key_here
-MODEL=gpt-3.5-turbo  # or your preferred model
-APPLICATION_NAME=your_application_name
-```
+   **Method: Using .env file**
+   ```bash
+   # Create a .env file in your project directory
+   cat > .env << EOL
+   # Coralogix Credentials
+   CORALOGIX_API_KEY=your-coralogix-api-key-here
+   APPLICATION_NAME=your-application-name-here
+
+   # OpenAI Credentials
+   OPENAI_API_KEY=your-openai-api-key-here
+
+   # Optional: Model Configuration (for LLM matching)
+   MODEL=openai/gpt-3.5-turbo
+   EOL
+   ```
+
+2. Create an `agent.yaml` (for example, for a Coralogix agent):
+
+   ```yaml
+   - name: "Coralogix Agent"
+     description: "Agent to analyze and monitor Coralogix logs"
+     mcp_servers:
+       - name: "Coralogix MCP Server"
+         args: ["--coralogix-api-key=${CORALOGIX_API_KEY}", "--application-name=${APPLICATION_NAME}", "--openai-api-key=${OPENAI_API_KEY}"]
+         command: "coralogix-mcp"
+     system_prompt: "You are a SRE devops engineer specializing in Coralogix log analysis. Use the provided tools to extract and analyze log data (for example, analyze logs, search logs, search recent error logs, and get log context) to obtain valuable insights."
+   ```
+
+3. Run the server (for example, using the CLI):
+
+   ```bash
+   coralogix-mcp --coralogix-api-key "YOUR_CORALOGIX_API_KEY" --application-name "YOUR_APPLICATION_NAME" --openai-api-key "YOUR_OPENAI_API_KEY"
+   ```
+
+## Available Tools
+
+The coralogix‑mcp package provides the following CLI commands (tools) for interacting with Coralogix logs:
+
+1. **analyze‑logs** – Analyze (and summarize) log data (for example, show top 10 API endpoints with counts).  
+   Example (using the CLI):
+   ```bash
+   coralogix-mcp analyze-logs --application-name "your-app-name"
+   ```
+
+2. **search‑logs** – Search (and filter) logs (for example, by a search string or service name).  
+   Example (using the CLI):
+   ```bash
+   coralogix-mcp search-logs --search-string "error" --application-name "your-app-name"
+   ```
+
+3. **search‑recent‑error‑logs** – Search (and filter) recent error logs (for example, within a 2‑minute window) and return detailed error messages.  
+   Example (using the CLI):
+   ```bash
+   coralogix-mcp search-recent-error-logs --application-name "your-app-name"
+   ```
+
+4. **get‑log‑context** – Extract (and display) log entries with context (for example, around a given search string).  
+   Example (using the CLI):
+   ```bash
+   coralogix-mcp get-log-context --search-string "error" --application-name "your-app-name"
+   ```
+
+For more details, run (for example)  
+  coralogix‑mcp --help  
+or  
+  coralogix‑mcp analyze‑logs --help  
+(etc.).
 
 ## Development
 
-1. Clone the repository:
+For development setup (for example, using a virtual environment):
+
 ```bash
-git clone https://github.com/healthifyme/coralogix-mcp.git
+git clone https://github.com/yourusername/coralogix-mcp.git
 cd coralogix-mcp
-```
-
-2. Create a virtual environment:
-```bash
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. Install development dependencies:
-```bash
+source venv/bin/activate  # (On Windows, use: venv\Scripts\activate)
 pip install -e ".[dev]"
 ```
 
-4. Run tests:
-```bash
-pytest
-```
-
-## Tools
-
-The coralogix-mcp package provides a command-line interface (CLI) for interacting with Coralogix logs. You can use the following commands (for example, via pipx):
-
-- **analyze-logs** – Analyze (and summarize) log data (for example, show top 10 API endpoints with counts).  
-- **search-logs** – Search (and filter) logs (for example, by a search string or service name).  
-- **search-recent-error-logs** – Search (and filter) recent error logs (for example, within a 2‑minute window) and return detailed error messages.  
-- **get-log-context** – Extract (and display) log entries with context (for example, around a given search string).
-
-For more details, run (for example)  
-  coralogix-mcp --help  
-or  
-  coralogix-mcp analyze-logs --help  
-(etc.). 
-
-The server provides the following tools for coralogix log analysis:
-get_2xx_logs
-get_4xx_logs
-get_5xx_logs
-get_coralogix_logs_by_string
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Support
-
-For support, please open an issue in the GitHub repository or contact the development team at dev@healthifyme.com.
+MIT License – See [LICENSE](LICENSE) file for details.
