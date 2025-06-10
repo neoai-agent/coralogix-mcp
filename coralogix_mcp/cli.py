@@ -16,7 +16,7 @@ async def perform_async_initialization(server_obj: CoralogixMCPServer) -> None:
     try:
         # AWS clients are now initialized by AWSClientManager in the constructor
         # No need for explicit initialization
-        pass
+        await server_obj.client.initialize_coralogix_client()
     except Exception as e:
         logger.error(f"Failed to initialize AWS clients: {e}")
         return 1
