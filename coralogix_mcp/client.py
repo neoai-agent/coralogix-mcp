@@ -464,29 +464,15 @@ class CoralogixClient:
 
     async def search_recent_error_logs(self, service_name: str = None) -> Optional[Dict]:
         """Search error logs within a 2-minute time window from the current time and return detailed error messages"""
+        # TODO: Add error type filter
         service_name = await self.find_matching_coralogix_service_name(service_name)
         if not service_name:
             raise ValueError(f"No matching service name found for {service_name}")
         try:
-            # Generate query for both 4xx and 5xx errors
             query = f"source logs | filter $l.applicationname == '{self.application_name}'"
             if service_name:
                 query += f" | filter $l.subsystemname == '{service_name}'"
-            # Add severity filter for both CRITICAL and ERROR
-            query += " | filter ($m.severity == CRITICAL || $m.severity == ERROR)"
-            # Add filters for error-related terms
-            query += (
-                " | filter ("
-                "$d.logRecord.body.log.contains('error') || "
-                "$d.logRecord.body.log.contains('exception') || "
-                "$d.logRecord.body.log.contains('failed') || "
-                "$d.logRecord.body.log.contains('failure') || "
-                "$d.logRecord.body.log.contains('stacktrace') || "
-                "$d.logRecord.body.log.contains('traceback') || "
-                "($d.status_code >= '400' && $d.status_code <= '599')"
-                ")"
-            )
-            # Search logs with 2-minute time window
+            query += " | filter ($m.severity == CRITICAL)"
             results = await self.search_coralogix_logs(query)
             if not results:
                 return []
@@ -509,10 +495,6 @@ class CoralogixClient:
                         log_text = body.get("log", "")
                         
                     if not log_text:
-                        continue
-                        
-                    # Only include logs that contain error-related terms or have ERROR/CRITICAL severity
-                    if not any(term in log_text.lower() for term in ['error', 'exception', 'failed', 'failure', 'stacktrace', 'stack trace', 'traceback', 'trace back']):
                         continue
                         
                     timestamp = log.get("timestamp", "")
@@ -568,10 +550,7 @@ class CoralogixClient:
                 response_format={"type": "json_object"}
             )
 
-            # Extract the response content
-            response_content = response.choices[0].message.content
-            
-            # Validate that the response is valid JSON
+            response_content = response.choices[0].message.content            
             try:
                 json.loads(response_content)
                 return response_content
