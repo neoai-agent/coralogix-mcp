@@ -16,37 +16,7 @@ pipx run git+https://github.com/yourusername/coralogix-mcp.git
 
 ## Quick Start
 
-1. Set up your environment variables (using a .env file):
-
-   **Method: Using .env file**
-   ```bash
-   # Create a .env file in your project directory
-   cat > .env << EOL
-   # Coralogix Credentials
-   CORALOGIX_API_KEY=your-coralogix-api-key-here
-   APPLICATION_NAME=your-application-name-here
-
-   # OpenAI Credentials
-   OPENAI_API_KEY=your-openai-api-key-here
-
-   # Optional: Model Configuration (for LLM matching)
-   MODEL=openai/gpt-3.5-turbo
-   EOL
-   ```
-
-2. Create an `agent.yaml` (for example, for a Coralogix agent):
-
-   ```yaml
-   - name: "Coralogix Agent"
-     description: "Agent to analyze and monitor Coralogix logs"
-     mcp_servers:
-       - name: "Coralogix MCP Server"
-         args: ["--coralogix-api-key=${CORALOGIX_API_KEY}", "--application-name=${APPLICATION_NAME}", "--openai-api-key=${OPENAI_API_KEY}"]
-         command: "coralogix-mcp"
-     system_prompt: "You are a SRE devops engineer specializing in Coralogix log analysis. Use the provided tools to extract and analyze log data (for example, analyze logs, search logs, search recent error logs, and get log context) to obtain valuable insights."
-   ```
-
-3. Run the server (for example, using the CLI):
+1. Run the server (for example, using the CLI):
 
    ```bash
    coralogix-mcp --coralogix-api-key "YOUR_CORALOGIX_API_KEY" --application-name "YOUR_APPLICATION_NAME" --openai-api-key "YOUR_OPENAI_API_KEY"
