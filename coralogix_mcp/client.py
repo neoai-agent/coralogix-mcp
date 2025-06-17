@@ -3,7 +3,7 @@ from typing import Dict, Optional
 from datetime import datetime, timedelta, timezone
 import json
 from coralogix_mcp.common.logger import setup_logger
-from litellm import acompletion
+from litellm import completion
 
 CORALOGIX_API_URL = "https://ng-api-http.coralogixsg.com/api/v1/dataprime/query"
 
@@ -526,7 +526,7 @@ class CoralogixClient:
             str: JSON string containing the LLM's response with coralogix service_name
         """
         try:
-            response = await acompletion(
+            response = completion(
                 model=self.model,
                 api_key=self.openai_api_key,
                 messages=[
