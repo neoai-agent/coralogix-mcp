@@ -1,17 +1,11 @@
-import os
-import sys
-from dotenv import load_dotenv
 import requests
 from typing import Dict, Optional
 from datetime import datetime, timedelta, timezone
 import json
 from coralogix_mcp.common.logger import setup_logger
 from litellm import acompletion
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 CORALOGIX_API_URL = "https://ng-api-http.coralogixsg.com/api/v1/dataprime/query"
-# Load environment variables from .env file
-load_dotenv()
 
 # Set up logger using the central configuration
 logger = setup_logger('coralogix_mcp')

@@ -1,5 +1,3 @@
-from datetime import datetime, timedelta, timezone
-import re
 from mcp.server.fastmcp import FastMCP
 import logging
 from coralogix_mcp.client import CoralogixClient

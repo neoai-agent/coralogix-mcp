@@ -1,13 +1,8 @@
 """CLI for RDS MCP server."""
-import os
 import anyio
 import argparse
 import logging
-from dotenv import load_dotenv
 from coralogix_mcp.server import CoralogixMCPServer
-
-# Load environment variables from .env file if it exists
-load_dotenv()
 
 logger = logging.getLogger('coralogix_mcp')
 

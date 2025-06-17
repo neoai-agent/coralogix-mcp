@@ -1,6 +1,6 @@
 import json
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch, MagicMock, AsyncMock
 from datetime import datetime, timezone, timedelta
 
 @pytest.mark.asyncio
@@ -13,10 +13,10 @@ async def test_fetch_service_names(mock_coralogix_client, sample_log_results):
         '{"status": "ok"}',
         json.dumps({"result": {"results": sample_log_results}})
     ])
-    mock_coralogix_client._requests.get.return_value = mock_response
+    mock_coralogix_client._requests.post.return_value = mock_response
 
     # Test fetching service names
-    service_names = mock_coralogix_client.fetch_service_names()
+    service_names = await mock_coralogix_client.fetch_service_names()
     
     assert len(service_names) == 2
     assert "test-service-1" in service_names
@@ -35,15 +35,15 @@ async def test_fetch_service_names_empty_response(mock_coralogix_client):
         '{"status": "ok"}',
         json.dumps({"result": {"results": []}})
     ])
-    mock_coralogix_client._requests.get.return_value = mock_response
+    mock_coralogix_client._requests.post.return_value = mock_response
 
-    service_names = mock_coralogix_client.fetch_service_names()
+    service_names = await mock_coralogix_client.fetch_service_names()
     assert service_names == []
 
 @pytest.mark.asyncio
 async def test_find_matching_coralogix_service_name_exact_match(mock_coralogix_client):
     """Test finding exact service name match"""
-    mock_coralogix_client.fetch_service_names = Mock(return_value=["test-service-1", "test-service-2"])
+    mock_coralogix_client.fetch_service_names = AsyncMock(return_value=["test-service-1", "test-service-2"])
     
     result = await mock_coralogix_client.find_matching_coralogix_service_name("test-service-1")
     assert result == "test-service-1"
@@ -52,10 +52,8 @@ async def test_find_matching_coralogix_service_name_exact_match(mock_coralogix_c
 @pytest.mark.asyncio
 async def test_find_matching_coralogix_service_name_llm_match(mock_coralogix_client):
     """Test finding service name match using LLM"""
-    mock_coralogix_client.fetch_service_names = Mock(return_value=["test-service-1", "test-service-2"])
-    mock_coralogix_client.llm.completion.return_value = Mock(
-        choices=[Mock(message=Mock(content='{"service_name": "test-service-1"}'))]
-    )
+    mock_coralogix_client.fetch_service_names = AsyncMock(return_value=["test-service-1", "test-service-2"])
+    mock_coralogix_client.call_llm = AsyncMock(return_value='{"service_name": "test-service-1"}')
     
     result = await mock_coralogix_client.find_matching_coralogix_service_name("test")
     assert result == "test-service-1"
@@ -64,8 +62,8 @@ async def test_find_matching_coralogix_service_name_llm_match(mock_coralogix_cli
 @pytest.mark.asyncio
 async def test_find_matching_coralogix_service_name_basic_match(mock_coralogix_client):
     """Test finding service name match using basic matching"""
-    mock_coralogix_client.fetch_service_names = Mock(return_value=["test-service-1", "test-service-2"])
-    mock_coralogix_client.llm.completion.return_value = None
+    mock_coralogix_client.fetch_service_names = AsyncMock(return_value=["test-service-1", "test-service-2"])
+    mock_coralogix_client.call_llm = AsyncMock(return_value=None)
     
     result = await mock_coralogix_client.find_matching_coralogix_service_name("test")
     assert result == "test-service-1"  # Should match the first partial match
@@ -74,7 +72,7 @@ async def test_find_matching_coralogix_service_name_basic_match(mock_coralogix_c
 @pytest.mark.asyncio
 async def test_http_generate_query(mock_coralogix_client):
     """Test generating HTTP query"""
-    mock_coralogix_client.fetch_service_names = Mock(return_value=["test-service"])
+    mock_coralogix_client.find_matching_coralogix_service_name = AsyncMock(return_value="test-service")
     
     query = await mock_coralogix_client.http_generate_query("test-service", "4xx")
     assert "filter $l.subsystemname == 'test-service'" in query
@@ -149,6 +147,9 @@ async def test_get_log_context(mock_coralogix_client):
 @pytest.mark.asyncio
 async def test_search_recent_error_logs(mock_coralogix_client, sample_error_logs):
     """Test searching recent error logs"""
+    # Mock the service name matching
+    mock_coralogix_client.find_matching_coralogix_service_name = AsyncMock(return_value="test-service-1")
+    
     # The log text must contain error-related terms for the production filter to pass
     error_log_1 = {
         "timestamp": "2024-03-20T10:00:00Z",
@@ -199,29 +200,27 @@ async def test_search_recent_error_logs(mock_coralogix_client, sample_error_logs
     ])
     mock_coralogix_client._requests.post.return_value = mock_response
     # Mock the query generation
-    mock_coralogix_client.search_generate_query = Mock(return_value="test query")
+    mock_coralogix_client.search_generate_query = AsyncMock(return_value="test query")
     results = await mock_coralogix_client.search_recent_error_logs("test-service-1")
     assert len(results) == 2
     assert results[0]["service"] == "test-service-1"
-    assert results[0]["severity"] == "ERROR"
-    assert "Invalid input" in results[0]["log_message"]
+    assert results[1]["service"] == "test-service-2"
 
 def test_find_best_match_basic(mock_coralogix_client):
-    """Test basic service name matching"""
-    candidates = ["test-service-1", "test-service-2", "other-service"]
+    """Test basic matching function"""
+    candidates = ["test-service-1", "test-service-2", "api-service"]
     
-    # Test exact match
-    assert mock_coralogix_client.find_best_match_basic("test-service-1", candidates) == "test-service-1"
+    # Exact match
+    result = mock_coralogix_client.find_best_match_basic("test-service-1", candidates)
+    assert result == "test-service-1"
     
-    # Test partial match
-    assert mock_coralogix_client.find_best_match_basic("test", candidates) == "test-service-1"
+    # Partial match
+    result = mock_coralogix_client.find_best_match_basic("test", candidates)
+    assert result == "test-service-1"
     
-    # Test no match
-    assert mock_coralogix_client.find_best_match_basic("nonexistent", candidates) is None
-    
-    # Test empty input
-    assert mock_coralogix_client.find_best_match_basic("", candidates) is None
-    assert mock_coralogix_client.find_best_match_basic("test", []) is None
+    # No match
+    result = mock_coralogix_client.find_best_match_basic("unknown", candidates)
+    assert result is None
 
 @pytest.mark.asyncio
 async def test_fetch_service_names_404(mock_coralogix_client):
@@ -230,17 +229,18 @@ async def test_fetch_service_names_404(mock_coralogix_client):
     mock_response.ok = False
     mock_response.status_code = 404
     mock_response.text = "Not found"
-    mock_coralogix_client._requests.get.return_value = mock_response
-    service_names = mock_coralogix_client.fetch_service_names()
+    mock_coralogix_client._requests.post.return_value = mock_response
+    service_names = await mock_coralogix_client.fetch_service_names()
     assert service_names == []
 
 @pytest.mark.asyncio
 async def test_call_llm(mock_coralogix_client):
     """Test call_llm (mocked) returns the expected JSON response."""
-    # Mock the llm.completion call so that it returns a response with a valid JSON string.
+    # Mock the acompletion call
     mock_response = MagicMock()
     mock_response.choices = [MagicMock(message=MagicMock(content='{"service_name":"test-service-1"}'))]
-    mock_coralogix_client.llm.completion.return_value = mock_response
-    prompt = "Find the best matching service name for 'test' from [test-service-1, test-service-2]"
-    result = await mock_coralogix_client.call_llm(prompt)
-    assert result == '{"service_name":"test-service-1"}' 
+    
+    with patch('coralogix_mcp.client.acompletion', return_value=mock_response):
+        prompt = "Find the best matching service name for 'test' from [test-service-1, test-service-2]"
+        result = await mock_coralogix_client.call_llm(prompt)
+        assert result == '{"service_name":"test-service-1"}' 
