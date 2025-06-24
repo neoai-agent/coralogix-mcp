@@ -8,10 +8,10 @@ Install directly from GitHub using pipx:
 
 ```bash
 # Install
-pipx install git+https://github.com/yourusername/coralogix-mcp.git
+pipx install git+https://github.com/neoai-agent/coralogix-mcp.git
 
 # Or run without installation
-pipx run git+https://github.com/yourusername/coralogix-mcp.git
+pipx run git+https://github.com/neoai-agent/coralogix-mcp.git
 ```
 
 ## Quick Start
@@ -63,7 +63,7 @@ For development setup using a virtual environment:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/coralogix-mcp.git
+git clone https://github.com/neoai-agent/coralogix-mcp.git
 cd coralogix-mcp
 
 # Set up virtual environment
