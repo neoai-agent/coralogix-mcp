@@ -47,4 +47,5 @@ logs/
 # Distribution
 dist/
 build/
-*.egg-info/ 
+*.egg-info/ test_env/
+temp_venv/

@@ -26,35 +26,39 @@ coralogix-mcp --coralogix-api-key "YOUR_CORALOGIX_API_KEY" \
 
 ## Available Tools
 
-The coralogix-mcp package provides the following CLI commands for interacting with Coralogix logs:
+The coralogix-mcp package provides the following MCP tools for interacting with Coralogix logs:
 
-1. **analyze-logs** - Analyze and summarize log data (e.g., show top 10 API endpoints with counts)
-   ```bash
-   coralogix-mcp analyze-logs --application-name "your-app-name"
-   ```
+1. **get_2xx_logs** - Analyze 2XX success logs from Coralogix with API endpoint statistics
+   - Returns API analysis showing top endpoints with request counts
+   - Optional `service_name` parameter to filter by specific service
 
-2. **search-logs** - Search and filter logs by search string or service name
-   ```bash
-   coralogix-mcp search-logs --search-string "error" --application-name "your-app-name"
-   ```
+2. **get_4xx_logs** - Analyze 4XX client error logs from Coralogix
+   - Returns API analysis with endpoint statistics
+   - Includes recent error details from the last 2 minutes
+   - Shows total error count
+   - Optional `service_name` parameter to filter by specific service
 
-3. **search-recent-error-logs** - Search and filter recent error logs within a 2-minute window
-   ```bash
-   coralogix-mcp search-recent-error-logs --application-name "your-app-name"
-   ```
+3. **get_5xx_logs** - Analyze 5XX server error logs from Coralogix
+   - Returns API analysis with endpoint statistics
+   - Includes recent error details from the last 2 minutes
+   - Shows total error count
+   - Optional `service_name` parameter to filter by specific service
 
-4. **get-log-context** - Extract and display log entries with context around a search string
-   ```bash
-   coralogix-mcp get-log-context --search-string "error" --application-name "your-app-name"
-   ```
+4. **get_coralogix_logs_by_string** - Search logs for a specific string and return context around matches
+   - Required `search_string` parameter to search for
+   - Optional `service_name` parameter to filter by specific service
+   - Optional `context_lines` parameter (default: 100) to specify context around matches
+   - Returns log entries with surrounding context for better debugging
+
+All tools automatically handle:
+- Service name matching and validation
+- Time range filtering (default: last 15 minutes)
+- Error handling and logging
+- JSON response formatting
 
 For more details, run:
 ```bash
 coralogix-mcp --help
-```
-or
-```bash
-coralogix-mcp analyze-logs --help
 ```
 
 ## Development

@@ -7,7 +7,6 @@ from litellm import completion
 
 CORALOGIX_API_URL = "https://ng-api-http.coralogixsg.com/api/v1/dataprime/query"
 
-# Set up logger using the central configuration
 logger = setup_logger('coralogix_mcp')
 
 class CoralogixClient:
@@ -22,13 +21,12 @@ class CoralogixClient:
         self._service_name_cache = {
             "data": None,
             "timestamp": None,
-            "cache_ttl": 300  # 5 minutes in seconds
+            "cache_ttl": 300
         }
         self._service_name_matching_cache = {}
         self.end_time = datetime.now(timezone.utc)
         self.start_time = self.end_time - timedelta(minutes=time_range_minutes)
         
-        # Set up headers for Coralogix API
         self.headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {coralogix_api_key}"
@@ -73,7 +71,6 @@ class CoralogixClient:
 
             if response.ok:
                 try:
-                    # Get the second JSON object containing results
                     json_lines = [line.strip() for line in response.text.split('\n') if line.strip()]
                     if len(json_lines) >= 2:
                         results_json = json.loads(json_lines[1])
@@ -83,7 +80,6 @@ class CoralogixClient:
                             logger.info("No logs found for the given time period")
                             return []
                             
-                        # Properly parse the userData JSON string and extract subsystemname
                         service_names = []
                         for log in log_results:
                             try:
@@ -97,7 +93,6 @@ class CoralogixClient:
                         
                         logger.info(f"Found {len(service_names)} service names")
                         
-                        # Update cache
                         self._service_name_cache["data"] = service_names
                         self._service_name_cache["timestamp"] = current_time
                         
@@ -122,24 +117,20 @@ class CoralogixClient:
             logger.error("No service name provided")
             return None
 
-        # Check if we have a cached result for this service name
         if service_name in self._service_name_matching_cache:
             logger.info(f"Returning cached match for service name: {service_name}")
             return self._service_name_matching_cache[service_name]
         
-        # Get all available service names
         service_names_available = await self.fetch_service_names()
         if not service_names_available:
             logger.error("No service names available")
             return None
         
-        # Check if the service name is in the list of available service names
         if service_name in service_names_available:
             logger.info(f"Found exact match for service name: {service_name}")
             self._service_name_matching_cache[service_name] = service_name
             return service_name
         
-        # Try LLM matching first
         system_prompt = f"""
         You are a helpful assistant that can find the best match for a given service name "{service_name}" from the list of available service names.
         The list of Coralogix service names available are: {service_names_available}.
@@ -181,22 +172,18 @@ class CoralogixClient:
         if not target or not candidates:
             return None
         
-        # Convert to lowercase for case-insensitive matching
         target = target.lower()
         
-        # Exact match check
         for candidate in candidates:
             if candidate.lower() == target:
                 return candidate
         
-        # Partial match check (contains)
         partial_matches = [
             c for c in candidates
             if target in c.lower() or c.lower() in target
         ]
         
         if partial_matches:
-            # Sort by length to prefer shorter, more precise matches
             partial_matches.sort(key=len)
             return partial_matches[0]
         
@@ -230,7 +217,6 @@ class CoralogixClient:
         else:
             query += " | filter $m.severity == CRITICAL"
 
-        # New extraction and grouping logic
         query += (
             "| extract $d.path into $d using regexp(e=/(?<new_path>^.+)\\?.+/) "
             "| groupby $d.new_path, $d.http_method, $d.status_code aggregate count() as log_count"
@@ -251,14 +237,12 @@ class CoralogixClient:
         if service_name:
             query += f" | filter $l.subsystemname == '{service_name}'"
         
-        # Handle multiple search strings
         search_strings = [s.strip() for s in search_string.split('and')]
         search_conditions = []
         
         for s in search_strings:
             safe_search_string = s.replace("'", "\\'")
             if s.isdigit() and len(s) == 3:
-                # Match status code in both log line and JSON format
                 search_conditions.append(
                     f"($d.logRecord.body.log.contains(' {s} ') || "
                     f"$d.logRecord.body.log.contains('\"status\":\"{s}\"') || "
@@ -267,7 +251,6 @@ class CoralogixClient:
             else:
                 search_conditions.append(f"$d.logRecord.body.log.contains('{safe_search_string}')")
         
-        # Combine all search conditions with AND operator
         if search_conditions:
             query += " | filter (" + " && ".join(search_conditions) + ")"
         
@@ -278,7 +261,6 @@ class CoralogixClient:
     async def search_coralogix_logs(self, query: str) -> Optional[Dict]:
         """Search Coralogix logs for error details"""
         try:
-            # Format timestamps in microseconds and Z suffix to properly format the date range
             end_time_str = self.end_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
             start_time_str = self.start_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
             
@@ -302,20 +284,17 @@ class CoralogixClient:
             
             if response.ok:
                 try:
-                    # Get the second JSON object containing results
                     json_lines = [line.strip() for line in response.text.split('\n') if line.strip()]
                     if len(json_lines) >= 2:
                         results_json = json.loads(json_lines[1])
                         log_results = results_json.get("result", {}).get("results", [])
                         
-                        # If no logs found, return empty list instead of None
                         if not log_results:
                             logger.info("No logs found for the given time period")
                             return []
                         
                         user_data_list = []
                         for log in log_results:
-                            # Try to parse logRecord.body.log as JSON if present
                             log_record = log.get("logRecord", {})
                             if isinstance(log_record, dict):
                                 body = log_record.get("body", {})
@@ -333,7 +312,6 @@ class CoralogixClient:
                             user_data_list.append(user_data)
                         logger.info(f"Found {len(user_data_list)} log entries")
                         return user_data_list
-                    # No results in response, return empty list
                     logger.info("No logs found in response")
                     return []
                 except json.JSONDecodeError as e:
@@ -354,10 +332,8 @@ class CoralogixClient:
         api_counts = {}
         total_requests = 0
         
-        # Process logs
         for log in user_data_list:
             path = log.get("new_path", "")
-            # Skip unknown or null paths
             if not path or path == "unknown":
                 continue
                 
@@ -365,7 +341,6 @@ class CoralogixClient:
             method = log.get("http_method", "")
             status = log.get("status_code", "")
             
-            # Create unique key for path+method+status
             key = f"{path}|{method}|{status}"
             api_counts[key] = {
                 "http_method": method,
@@ -471,7 +446,6 @@ class CoralogixClient:
             if not results:
                 return []
                 
-            # Extract and format log messages
             formatted_logs = []
             for log in results:
                 try:
