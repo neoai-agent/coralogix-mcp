@@ -39,7 +39,7 @@ class CoralogixMCPServer:
         # and manage its own event loop for stdio transport.
         self.mcp.run(transport='stdio')
 
-    async def get_2xx_logs(self, service_name = None) -> str:
+    async def get_2xx_logs(self, service_name = None):
         """Analyze 2XX error logs from Coralogix with both API endpoint statistics and detailed error messages"""
         try:
             query = await self.client.http_generate_query(service_name, query_type="2xx")
@@ -59,7 +59,7 @@ class CoralogixMCPServer:
             logger.error(f"Error in get_2xx_logs: {str(e)}")
             return {"status": "error", "message": str(e)}
 
-    async def get_4xx_logs(self, service_name = None) -> str:
+    async def get_4xx_logs(self, service_name = None):
         """Analyze 4XX error logs from Coralogix with both API endpoint statistics and detailed error messages"""
         try:
             query = await self.client.http_generate_query(service_name, query_type="4xx")
@@ -96,7 +96,7 @@ class CoralogixMCPServer:
             logger.error(f"Error in get_4xx_logs: {str(e)}")
             return {"status": "error", "message": str(e)}
 
-    async def get_5xx_logs(self, service_name = None) -> str:
+    async def get_5xx_logs(self, service_name = None):
         """Analyze 5XX error logs from Coralogix with both API endpoint statistics and detailed error messages"""
         try:
             query = await self.client.http_generate_query(service_name, query_type="5xx")
@@ -133,7 +133,7 @@ class CoralogixMCPServer:
             logger.error(f"Error in get_5xx_logs: {str(e)}")
             return {"status": "error", "message": str(e)}
 
-    async def get_coralogix_logs_by_string(self, search_string: str, service_name: str = None, context_lines: int = 100) -> str:
+    async def get_coralogix_logs_by_string(self, search_string: str, service_name: str = None, context_lines: int = 100):
         """Search logs for a specific string and return context around matches"""
         try:
             query = await self.client.search_generate_query(search_string, service_name)

@@ -5,7 +5,8 @@ import json
 from coralogix_mcp.common.logger import setup_logger
 from litellm import completion
 
-CORALOGIX_API_URL = "https://ng-api-http.coralogixsg.com/api/v1/dataprime/query"
+# CORALOGIX_API_URL = "https://ng-api-http.coralogixsg.com/api/v1/dataprime/query" #deprecated
+CORALOGIX_API_URL = "https://api.ap2.coralogix.com/api/v1/dataprime/query"
 
 logger = setup_logger('coralogix_mcp')
 
@@ -139,6 +140,9 @@ class CoralogixClient:
         {{
             "service_name": "best matching Coralogix service name"
         }}
+        Important:
+        - The service name should be valid service name from the list of available service names as in coralogix subsystem name. 
+        - Application name and subsystem name are different.
         """
         
         try:
@@ -167,7 +171,7 @@ class CoralogixClient:
         
         return best_match
     
-    def find_best_match_basic(self, target: str, candidates: list) -> str:
+    def find_best_match_basic(self, target: str, candidates: list):
         """Basic fallback matching function when LLM is not available"""
         if not target or not candidates:
             return None
@@ -189,10 +193,10 @@ class CoralogixClient:
         
         return None
     
-    async def http_generate_query(self, service_name: str, query_type: str = None) -> str:
+    async def http_generate_query(self, service_name: str, query_type: str = None):
         """Generate a query for Coralogix DataPrime for HTTP requests
         Args:
-            service_name: The service name to generate a query for
+            service_name: The service name to generate a query.
             query_type: The type of query to generate. Can be "4xx", "5xx", "2xx", or "critical"
         Returns:
             A string containing the query for Coralogix DataPrime
@@ -209,22 +213,22 @@ class CoralogixClient:
         )
 
         if query_type == "4xx":
-            query += " | filter ($d.status_code >= '400' && $d.status_code <= '499') | filter $d.http_method != null"
+            query += " | filter ($d.status_code:num >= 400 && $d.status_code:num <= 499) | filter $d.http_method != null"
         elif query_type == "5xx":
-            query += " | filter ($d.status_code >= '500' && $d.status_code <= '599') | filter $d.http_method != null"
+            query += " | filter ($d.status_code:num >= 500 && $d.status_code:num <= 599) | filter $d.http_method != null"
         elif query_type == "2xx":
-            query += " | filter ($d.status_code >= '200' && $d.status_code <= '399') | filter $d.http_method != null"
+            query += " | filter ($d.status_code:num >= 200 && $d.status_code:num <= 399) | filter $d.http_method != null"
         else:
             query += " | filter $m.severity == CRITICAL"
 
         query += (
             "| extract $d.path into $d using regexp(e=/(?<new_path>^.+)\\?.+/) "
-            "| groupby $d.new_path, $d.http_method, $d.status_code aggregate count() as log_count"
+            "| groupby $d.new_path, $d.http_method, $d.status_code:num aggregate count() as log_count"
         )
         return query
 
-    async def search_generate_query(self, search_string: str, service_name: str = None) -> str:
-        """Generate a query for Coralogix DataPrime"""
+    async def search_generate_query(self, search_string: str, service_name: str = None):
+        """Generate a query for Coralogix DataPrime for search string in logs"""
         
         service_name = await self.find_matching_coralogix_service_name(service_name)
         if not service_name:
@@ -258,7 +262,7 @@ class CoralogixClient:
 
         return query
 
-    async def search_coralogix_logs(self, query: str) -> Optional[Dict]:
+    async def search_coralogix_logs(self, query: str):
         """Search Coralogix logs for error details"""
         try:
             end_time_str = self.end_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
@@ -270,7 +274,7 @@ class CoralogixClient:
             }
             
             # Enhanced logging
-            logger.info("=== Coralogix API Request Details ===")
+            logger.info("=== Coralogix API Request Details for search_coralogix_logs ===")
             logger.info(f"URL: {CORALOGIX_API_URL}")
             logger.info(f"Time Range: {start_time_str} to {end_time_str}")
             logger.info(f"Query: {query}")
@@ -324,7 +328,7 @@ class CoralogixClient:
             logger.error(f"Error searching logs: {str(e)}")
             return None
 
-    async def analyze_logs(self, user_data_list: list) -> dict:
+    async def analyze_logs(self, user_data_list: list):
         """Analyze logs and show top 10 API endpoints with counts"""
         if not user_data_list or not isinstance(user_data_list, list):
             return {"summary": "No logs found for analysis"}
@@ -362,7 +366,7 @@ class CoralogixClient:
             "top_apis": top_apis
         }
 
-    async def get_log_context(self, user_data_list: list, search_string: str, context_lines: int = 10) -> list:
+    async def get_log_context(self, user_data_list: list, search_string: str, context_lines: int = 10):
         """Extract logs with context around the search string"""
         context_results = []
         
@@ -425,13 +429,13 @@ class CoralogixClient:
         return context_results
 
 
-    async def format_error_analysis(self, user_data_list: list, error_type: str) -> str:
+    async def format_error_analysis(self, user_data_list: list, error_type: str):
         """Format error analysis results"""
         analysis = await self.analyze_logs(user_data_list)
 
         return analysis
 
-    async def search_recent_error_logs(self, service_name: str = None) -> Optional[Dict]:
+    async def search_recent_error_logs(self, service_name: str = None):
         """Search error logs within a 2-minute time window from the current time and return detailed error messages"""
         # TODO: Add error type filter
         service_name = await self.find_matching_coralogix_service_name(service_name)
@@ -489,7 +493,7 @@ class CoralogixClient:
             logger.error(f"Error searching recent error logs: {str(e)}")
             return None
     
-    async def call_llm(self, prompt: str) -> str:
+    async def call_llm(self, prompt: str):
         """
         Call LLM using LiteLLM to find matching names.
         
