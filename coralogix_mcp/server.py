@@ -134,7 +134,7 @@ class CoralogixMCPServer:
             return {"status": "error", "message": str(e)}
 
     async def get_coralogix_logs_by_string(self, search_string: str, service_name: str = None, context_lines: int = 100):
-        """Search logs for a specific string and return context around matches"""
+        """Search logs for a specific string and return context around matches by service name if provided"""
         try:
             query = await self.client.search_generate_query(search_string, service_name)
             logs = await self.client.search_coralogix_logs(query)

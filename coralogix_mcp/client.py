@@ -209,8 +209,11 @@ class CoralogixClient:
         
         query = (
             f"source logs | filter $l.applicationname == '{self.application_name}' "
-            f"| filter $l.subsystemname == '{service_name}' "
         )
+        if service_name != self.application_name:
+            query += f"| filter $l.subsystemname == '{service_name}' "
+        else:
+            query += " | filter $l.subsystemname != null"
 
         if query_type == "4xx":
             query += " | filter ($d.status_code:num >= 400 && $d.status_code:num <= 499) | filter $d.http_method != null"
@@ -228,7 +231,8 @@ class CoralogixClient:
         return query
 
     async def search_generate_query(self, search_string: str, service_name: str = None):
-        """Generate a query for Coralogix DataPrime for search string in logs"""
+        """Generate a query for Coralogix DataPrime for search string in logs by service name if provided, otherwise search all logs in the application using the 
+        filter $l.subsystemname != null """
         
         service_name = await self.find_matching_coralogix_service_name(service_name)
         if not service_name:
@@ -238,8 +242,10 @@ class CoralogixClient:
             f"source logs | filter $l.applicationname == '{self.application_name}'"
         )
         
-        if service_name:
+        if service_name != self.application_name:
             query += f" | filter $l.subsystemname == '{service_name}'"
+        else:
+            query += f" | filter $l.subsystemname != null"
         
         search_strings = [s.strip() for s in search_string.split('and')]
         search_conditions = []
@@ -263,7 +269,7 @@ class CoralogixClient:
         return query
 
     async def search_coralogix_logs(self, query: str):
-        """Search Coralogix logs for error details"""
+        """Search Coralogix logs for error details by service name if provided, otherwise search all logs in the application"""
         try:
             end_time_str = self.end_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
             start_time_str = self.start_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
