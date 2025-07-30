@@ -225,7 +225,7 @@ class CoralogixClient:
             query += " | filter $m.severity == CRITICAL"
 
         query += (
-            "| extract $d.path into $d using regexp(e=/(?<new_path>^.+)\\?.+/) "
+            "| extract $d.path into $d using regexp(e=/(?<new_path>^[^?]+)(?:\\?.+)?/) "
             "| groupby $d.new_path, $d.http_method, $d.status_code:num aggregate count() as log_count"
         )
         return query
@@ -360,12 +360,12 @@ class CoralogixClient:
             }
             total_requests += count
         
-        # Get top 10 by count
+        # Get top 15 by count
         top_apis = sorted(
             api_counts.values(),
             key=lambda x: x["log_count"],
             reverse=True
-        )[:10]
+        )[:15]
         
         return {
             "total_requests": total_requests,
@@ -487,7 +487,7 @@ class CoralogixClient:
                         "timestamp": timestamp,
                         "service": log.get("subsystemname", ""),
                         "severity": log.get("severity", ""),
-                        "log_message": log_text
+                        "log_message": log_text[:500] + "..." if len(log_text) > 500 else log_text
                     })
                 except Exception as e:
                     logger.error(f"Error processing log entry: {str(e)}")
